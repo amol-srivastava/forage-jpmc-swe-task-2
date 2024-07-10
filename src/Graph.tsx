@@ -3,27 +3,16 @@ import { Table } from '@finos/perspective';
 import { ServerRespond } from './DataStreamer';
 import './Graph.css';
 
-/**
- * Props declaration for <Graph />
- */
 interface IProps {
   data: ServerRespond[],
 }
 
-/**
- * Perspective library adds load to HTMLElement prototype.
- * This interface acts as a wrapper for Typescript compiler.
- */
-interface PerspectiveViewerElement {
+interface PerspectiveViewerElement extends HTMLElement {
   load: (table: Table) => void,
+  setAttribute: (name: string, value: string) => void;
 }
 
-/**
- * React component that renders Perspective based on data
- * parsed from its parent through data property.
- */
 class Graph extends Component<IProps, {}> {
-  // Perspective table
   table: Table | undefined;
 
   render() {
@@ -31,26 +20,40 @@ class Graph extends Component<IProps, {}> {
   }
 
   componentDidMount() {
-    // Get element to attach the table from the DOM.
-    const elem: PerspectiveViewerElement = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
+  // Get the perspective-viewer element from the DOM
+  const elem = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
 
-    const schema = {
-      stock: 'string',
-      top_ask_price: 'float',
-      top_bid_price: 'float',
-      timestamp: 'date',
-    };
+  // Define the schema for the perspective table
+  const schema = {
+    stock: 'string',
+    top_ask_price: 'float',
+    top_bid_price: 'float',
+    timestamp: 'date',
+  };
 
-    if (window.perspective && window.perspective.worker()) {
-      this.table = window.perspective.worker().table(schema);
-    }
-    if (this.table) {
-      // Load the `table` in the `<perspective-viewer>` DOM reference.
-
-      // Add more Perspective configurations here.
-      elem.load(this.table);
-    }
+  // Initialize the perspective worker and table
+  if (window.perspective && window.perspective.worker()) {
+    this.table = window.perspective.worker().table(schema);
   }
+
+  if (this.table) {
+    // Load the perspective table into the perspective-viewer
+    elem.load(this.table);
+
+    // Configure the perspective-viewer attributes
+    elem.setAttribute('view', 'y_line');
+    elem.setAttribute('column-pivots', '["stock"]');
+    elem.setAttribute('row-pivots', '["timestamp"]');
+    elem.setAttribute('columns', '["top_ask_price"]');
+    elem.setAttribute('aggregates', JSON.stringify({
+      stock: 'distinct count',
+      top_ask_price: 'avg',
+      top_bid_price: 'avg',
+      timestamp: 'distinct count'
+    }));
+  }
+}
+
 
   componentDidUpdate() {
     // Everytime the data props is updated, insert the data into Perspective table
